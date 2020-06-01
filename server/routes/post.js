@@ -1,33 +1,41 @@
 const express = require('express')
 const router = express.Router()
 const mongoose = require('mongoose')
-const requireLogin = require('../middleware/requireLogin')
-const Post = mongoose.model('Post')
-
-
+const requireLogin  = require('../middleware/requireLogin')
+const Post =  mongoose.model("Post")
 router.get('/allpost',requireLogin,(req,res)=>{
     Post.find()
     .populate("postedBy","_id name")
-    .then(posts =>{
+    .populate("comments.postedBy","_id name")
+    .then(posts=>{
         res.json({posts})
     })
-    .catch(err =>{
+    .catch(err=>{
         console.log(err)
     })
 })
-
-
+router.get('/getsubpost',requireLogin,(req,res)=>{
+    // if postedBy in following
+    Post.find({postedBy:{$in:req.user.following}})
+    .populate("postedBy","_id name")
+    .populate("comments.postedBy","_id name")
+    .then(posts=>{
+        res.json({posts})
+    })
+    .catch(err=>{
+        console.log(err)
+    })
+})
 router.post('/createpost',requireLogin,(req,res)=>{
     const {title,body,pic} = req.body 
-    console.log(title,body,pic)
-    if(!title || !body|| !pic ){
-      return  res.status(422).json({error:"Please add all the fields"})
+    if(!title || !body || !pic){
+      return  res.status(422).json({error:"Plase add all the fields"})
     }
     req.user.password = undefined
     const post = new Post({
         title,
         body,
-        photo :pic,
+        photo:pic,
         postedBy:req.user
     })
     post.save().then(result=>{
@@ -37,8 +45,6 @@ router.post('/createpost',requireLogin,(req,res)=>{
         console.log(err)
     })
 })
-
-
 router.get('/mypost',requireLogin,(req,res)=>{
     Post.find({postedBy:req.user._id})
     .populate("PostedBy","_id name")
@@ -49,7 +55,6 @@ router.get('/mypost',requireLogin,(req,res)=>{
         console.log(err)
     })
 })
-
 router.put('/like',requireLogin,(req,res)=>{
     Post.findByIdAndUpdate(req.body.postId,{
         $push:{likes:req.user._id}
@@ -76,7 +81,6 @@ router.put('/unlike',requireLogin,(req,res)=>{
         }
     })
 })
-
 router.put('/comment',requireLogin,(req,res)=>{
     const comment = {
         text:req.body.text,
@@ -97,7 +101,6 @@ router.put('/comment',requireLogin,(req,res)=>{
         }
     })
 })
-
 router.delete('/deletepost/:postId',requireLogin,(req,res)=>{
     Post.findOne({_id:req.params.postId})
     .populate("postedBy","_id")
@@ -115,5 +118,4 @@ router.delete('/deletepost/:postId',requireLogin,(req,res)=>{
         }
     })
 })
-
 module.exports = router
